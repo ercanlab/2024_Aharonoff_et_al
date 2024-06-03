@@ -1,0 +1,8 @@
+gene:WBGene00272298
+gene:WBGene00272394
+gene:WBGene00272366
+gene:WBGene00284186
+gene:WBGene00272391
+gene:WBGene00272860
+gene:WBGene00283862
+gene:WBGene00283863
