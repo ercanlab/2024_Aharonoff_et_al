@@ -1,0 +1,7 @@
+sample,fastq_1,fastq_2,strandedness
+ERR229537_Hco_A_REP1,/scratch/aa7013/Hco_RNA-seq/fastq/ERR229537_R1_001.fastq.gz,/scratch/aa7013/Hco_RNA-seq/fastq/ERR229537_R2_001.fastq.gz,auto
+ERR229538_Hco_A_REP2,/scratch/aa7013/Hco_RNA-seq/fastq/ERR229538_R1_001.fastq.gz,/scratch/aa7013/Hco_RNA-seq/fastq/ERR229538_R2_001.fastq.gz,auto
+ERR229539_Hco_A_REP3,/scratch/aa7013/Hco_RNA-seq/fastq/ERR229539_R1_001.fastq.gz,/scratch/aa7013/Hco_RNA-seq/fastq/ERR229539_R2_001.fastq.gz,auto
+ERR229540_Hco_M_REP1,/scratch/aa7013/Hco_RNA-seq/fastq/ERR229540_R1_001.fastq.gz,/scratch/aa7013/Hco_RNA-seq/fastq/ERR229540_R2_001.fastq.gz,auto
+ERR229541_Hco_M_REP2,/scratch/aa7013/Hco_RNA-seq/fastq/ERR229541_R1_001.fastq.gz,/scratch/aa7013/Hco_RNA-seq/fastq/ERR229541_R2_001.fastq.gz,auto
+ERR229542_Hco_M_REP3,/scratch/aa7013/Hco_RNA-seq/fastq/ERR229542_R1_001.fastq.gz,/scratch/aa7013/Hco_RNA-seq/fastq/ERR229542_R2_001.fastq.gz,auto
