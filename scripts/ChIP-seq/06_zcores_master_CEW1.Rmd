@@ -1,0 +1,442 @@
+---
+title: "ChIP-seq z-score"
+author: "Avrami"
+date: "2024-04-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+
+```
+
+```{r}
+
+### variables ###
+## single replicates
+# gene body
+H4K20me1_REP1 = "H4K20me1_ab9051_CEW1_L-24hrs_ext649_AA73_input_AA77_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+H4K20me1_REP2 = "H4K20me1_ab9051_CEW1_L-24hrs_ext759_AA82_input_AA85_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+IgG_gene_body_REP1 = "IgG_ab46540_CEW1_L-24hrs_ext649_AA75_input_AA77_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+IgG_gene_body_REP2 = "IgG_ab46540_CEW1_L-24hrs_ext759_AA84_input_AA85_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+
+## merged
+# gene body
+H4K20me1_merged = "H4K20me1_ab9051_CEW1_L-24hrs_merged_AA73_AA82_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab" 
+IgG_gene_body_merged = "IgG_ab46540_CEW1_L-24hrs_merged_AA75_AA84_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+
+###
+
+```
+
+```{r}
+
+H4K20me1_REP1_gene_body <- read.table(H4K20me1_REP1, header = FALSE)
+H4K20me1_REP2_gene_body <- read.table(H4K20me1_REP2, header = FALSE)
+IgG_REP1_gene_body <- read.table(IgG_gene_body_REP1, header = FALSE)
+IgG_REP2_gene_body <- read.table(IgG_gene_body_REP2, header = FALSE)
+
+H4K20me1_merged_gene_body <- read.table(H4K20me1_merged, header = FALSE)
+IgG_merged_gene_body <- read.table(IgG_gene_body_merged, header = FALSE)
+
+
+column_names_1 <- c("chromosome", "start", "end", "score")
+colnames(H4K20me1_REP1_gene_body) <- column_names_1
+colnames(H4K20me1_REP2_gene_body) <- column_names_1
+colnames(IgG_REP1_gene_body) <- column_names_1
+colnames(IgG_REP2_gene_body) <- column_names_1
+
+colnames(H4K20me1_merged_gene_body) <- column_names_1
+colnames(IgG_merged_gene_body) <- column_names_1
+
+```
+
+```{r}
+
+add_zscore_column <- function(df) {
+  # Calculate log2 of the 'score' column
+  df$log2score <- log2(df$score)
+  
+  # Calculate z-scores
+  z_scores <- scale(df$log2score)
+  zscores <- z_scores[, 1]
+  
+  # Add z-scores as a new column to the data frame
+  df$zscore <- zscores
+  
+  return(df)
+}
+
+```
+
+```{r}
+
+H4K20me1_REP1_gene_body <- add_zscore_column(H4K20me1_REP1_gene_body)
+H4K20me1_REP2_gene_body <- add_zscore_column(H4K20me1_REP2_gene_body)
+IgG_REP1_gene_body <- add_zscore_column(IgG_REP1_gene_body)
+IgG_REP2_gene_body <- add_zscore_column(IgG_REP2_gene_body)
+
+H4K20me1_merged_gene_body <- add_zscore_column(H4K20me1_merged_gene_body)
+IgG_merged_gene_body <- add_zscore_column(IgG_merged_gene_body)
+
+```
+
+```{r}
+
+summarize_data <- function(df) {
+  summary <- df %>%
+  group_by(chromosome) %>%
+  summarize(n = n(), 
+            mean = mean(zscore, na.rm = TRUE),
+            median = median(zscore, na.rm = TRUE),
+            variance = var(zscore, na.rm = TRUE),
+            sd = sd(zscore, na.rm = TRUE),
+            ci_low = mean - qt(0.975, df = n - 1) * (sd / sqrt(n)),
+            ci_high = mean + qt(0.975, df = n - 1) * (sd / sqrt(n)))
+  return(summary)
+    
+}
+
+```
+
+```{r}
+
+sum_H4K20me1_REP1_gene_body <- summarize_data(H4K20me1_REP1_gene_body)
+sum_H4K20me1_REP2_gene_body <- summarize_data(H4K20me1_REP2_gene_body)
+sum_IgG_REP1_gene_body <- summarize_data(IgG_REP1_gene_body)
+sum_IgG_REP2_gene_body <- summarize_data(IgG_REP2_gene_body)
+
+sum_H4K20me1_merged_gene_body <- summarize_data(H4K20me1_merged_gene_body)
+sum_IgG_merged_gene_body <- summarize_data(IgG_merged_gene_body)
+
+```
+
+```{r}
+
+chrom_colors = c("#DDDDDD", "#BBBBBB", "#999999", "#777777", "#555555", "#D55E00")
+species <- "CEW1"
+
+```
+
+```{r}
+
+write.table(H4K20me1_merged_gene_body, paste0(species,"_H4K20me1_merged_gene_body.tsv"), sep = "\t", row.names =FALSE, col.names = TRUE)
+
+```
+
+```{r}
+
+w=7
+h=5
+
+ggplot(H4K20me1_REP1_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H4K20me1_REP1_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H4K20me1_REP1_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H4K20me1_REP2_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H4K20me1_REP2_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H4K20me1_REP2_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H4K20me1_merged_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H4K20me1_merged_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic()
+#  theme(axis.text.x = element_blank(),
+#        axis.title.x = element_blank(),
+#        axis.title.y = element_blank(),
+#        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H4K20me1_merged_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP1_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_REP1_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_REP1_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP2_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_REP2_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_REP2_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_merged_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_merged_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_merged_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+```
+
+```{r}
+
+add_chromosome_group <- function(df) {
+  df$chromosome_group <- ifelse(df$chromosome == "X", "X", "A")
+  return(df)
+}
+
+```
+
+```{r}
+
+df <- c("H4K20me1_REP1_gene_body", "H4K20me1_REP2_gene_body", "H4K20me1_merged_gene_body", "IgG_REP1_gene_body", "IgG_REP2_gene_body", "IgG_merged_gene_body")
+
+# iterate with the above function
+for (df_name in df) {
+  # Get the data frame by its name
+  current_df <- get(df_name)
+  
+  # Subset columns from the data frame
+  current_df <- add_chromosome_group(current_df)
+  
+  # Update the data frame in the global environment
+  assign(df_name, current_df)
+}
+
+```
+
+```{r}
+
+summarize_data_group <- function(df) {
+  summary <- df %>%
+  group_by(chromosome_group) %>%
+  summarize(n = n(), 
+            mean = mean(zscore, na.rm = TRUE),
+            median = median(zscore, na.rm = TRUE),
+            variance = var(zscore, na.rm = TRUE),
+            sd = sd(zscore, na.rm = TRUE),
+            ci_low = mean - qt(0.975, df = n - 1) * (sd / sqrt(n)),
+            ci_high = mean + qt(0.975, df = n - 1) * (sd / sqrt(n)))
+  return(summary)
+    
+}
+
+```
+
+```{r}
+
+sum_group_H4K20me1_REP1_gene_body <- summarize_data_group(H4K20me1_REP1_gene_body)
+sum_group_H4K20me1_REP2_gene_body <- summarize_data_group(H4K20me1_REP2_gene_body)
+sum_group_IgG_REP1_gene_body <- summarize_data_group(IgG_REP1_gene_body)
+sum_group_IgG_REP2_gene_body <- summarize_data_group(IgG_REP2_gene_body)
+
+sum_group_H4K20me1_merged_gene_body <- summarize_data_group(H4K20me1_merged_gene_body)
+sum_group_IgG_merged_gene_body <- summarize_data_group(IgG_merged_gene_body)
+
+```
+
+```{r}
+
+chrom_colors_2 <- c("#BBBBBB", "#D55E00")
+
+ggplot(H4K20me1_REP1_gene_body, aes(x = chromosome_group, y = zscore, fill = chromosome_group)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors_2, guide = "none") +
+  geom_point(data = sum_group_H4K20me1_REP1_gene_body, 
+             aes(x = chromosome_group, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic()
+
+file.name = paste0(species,"_ChIP_H4K20me1_REP1_zcore_gene_body_violin_collapsed.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H4K20me1_REP2_gene_body, aes(x = chromosome_group, y = zscore, fill = chromosome_group)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors_2, guide = "none") +
+  geom_point(data = sum_group_H4K20me1_REP2_gene_body, 
+             aes(x = chromosome_group, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic()
+
+file.name = paste0(species,"_ChIP_H4K20me1_REP2_zcore_gene_body_violin_collapsed.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H4K20me1_merged_gene_body, aes(x = chromosome_group, y = zscore, fill = chromosome_group)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors_2, guide = "none") +
+  geom_point(data = sum_group_H4K20me1_merged_gene_body, 
+             aes(x = chromosome_group, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic()
+
+file.name = paste0(species,"_ChIP_H4K20me1_merged_zcore_gene_body_violin_collapsed.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP1_gene_body, aes(x = chromosome_group, y = zscore, fill = chromosome_group)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors_2, guide = "none") +
+  geom_point(data = sum_group_IgG_REP1_gene_body, 
+             aes(x = chromosome_group, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic()
+
+file.name = paste0(species,"_ChIP_IgG_REP1_zcore_gene_body_violin_collapsed.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP2_gene_body, aes(x = chromosome_group, y = zscore, fill = chromosome_group)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors_2, guide = "none") +
+  geom_point(data = sum_group_IgG_REP2_gene_body, 
+             aes(x = chromosome_group, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic()
+
+file.name = paste0(species,"_ChIP_IgG_REP2_zcore_gene_body_violin_collapsed.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_merged_gene_body, aes(x = chromosome_group, y = zscore, fill = chromosome_group)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors_2, guide = "none") +
+  geom_point(data = sum_group_IgG_merged_gene_body, 
+             aes(x = chromosome_group, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic()
+
+file.name = paste0(species,"_ChIP_IgG_merged_zcore_gene_body_violin_collapsed.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+```
