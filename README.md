@@ -10,4 +10,6 @@ We used the genome PRJNA12644 (WBPS16), and rescaffolded using YaHS (version 1.1
 **Enter scripts directory for code used in this study**
 The directory phylogenetic_analysis contains scripts used to generate trees in Figure 1B, S2, S3, and S10 as well as Figures 1B and 1C.
 
+**Detailed protocols for sample collection can be found in the sample_collection directory**
+
 This page is a work in progress, if you don't see something, be patient, it will be up soon. 
