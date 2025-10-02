@@ -6,9 +6,7 @@ replicates, infer strandedness with Salmon (version 1.10.1), asses the sequencin
 reads with sortMeRNA (version 4.3.4), align with STAR (version 2.7.10a), quantify with Salmon (version 1.10.1), and summarize counts 
 and TPM quantification at the gene level with tximport (version 1.16.0).
 
-02_DESeq_master_ISE.Rmd will take the *_tpm.tsv and *_counts.tsv files from nf-core rna-seq, and a bed file of gene annotations, and run
-DESeq2 as well as make some plots. This script was written for Haemonchus contortus (ISE), but can be used for any species with 
-appropriate modifications (e.g., chromosome number). Thisspits out some violin plots and some tsv files for two scripts below. A script
+02_DESeq_master_ISE.Rmd will take the *_tpm.tsv and *_counts.tsv files from nf-core rna-seq, and a bed file of gene annotations (example files provide), and run DESeq2 as well as make some plots. This script was written for Haemonchus contortus (ISE), but can be used for any species with appropriate modifications (e.g., chromosome number). This spits out some violin plots and some tsv files for two scripts below. A script
 like this (for a selected species) was used to make Figures 4B, 4C, 4E, S11, S12, S13, and S14. I basically just copy pasted this script 
 for each species and modified as needed (e.g., to include the PAR for B. malayi).
 
