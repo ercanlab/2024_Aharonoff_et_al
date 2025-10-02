@@ -9,7 +9,7 @@ and TPM quantification at the gene level with tximport (version 1.16.0).
 02_DESeq_master_ISE.Rmd will take the *_tpm.tsv and *_counts.tsv files from nf-core rna-seq and run DESeq2. This script was 
 written for Haemonchus contortus (ISE), but can be used for any species with appropriate modifications (e.g., chromosome number). This spits out some violin plots and some tsv files for two scripts below. A script like this (for a selected species) was used to make Figures 4B, 4C, 4E, S11, S12, S13, and S14. I basically just copy pasted this script for each species and modified as needed (e.g., to include the PAR for B. malayi).
 
-03_Log2_plot_all_species.Rmd catenates the results from the DESeq analysis for each species to make Figure 4A.
+03_Log2_plot_all_species.Rmd catenates the results (as *.tsv files) from the DESeq analysis for each species to make Figure 4A.
 
 04_pvals-vs_master.Rmd catenates the statistical analysis done for each species (e.g., from a 02_DESeq_master_*.Rmd), and plots
 one vs rest shown in Figure 4D.
