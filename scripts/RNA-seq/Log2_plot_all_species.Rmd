@@ -1,0 +1,242 @@
+---
+title: "Log2 plots all species"
+author: "Avrami"
+date: "2024-04-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+bma_before <- read.table("bma.res.data.pc.rmLow.tsv", header = TRUE)
+ppa_before <- read.table("ppa.res.data.pc.rmLow.tsv", header = TRUE)
+cel_before <- read.table("cel.res.data.pc.rmLow.tsv", header = TRUE)
+oti_before <- read.table("oti.res.data.pc.rmLow.tsv", header = TRUE)
+hco_before <- read.table("hco.res.data.pc.rmLow.tsv", header = TRUE)
+
+```
+
+
+```{r}
+
+bma_after <- read.table("bma.res.data.pc.rmLow.rmG.tsv", header = TRUE)
+ppa_after <- read.table("ppa.res.data.pc.rmLow.rmG.tsv", header = TRUE)
+cel_after <- read.table("cel.res.data.pc.rmLow.rmG.tsv", header = TRUE)
+oti_after <- read.table("oti.res.data.pc.rmLow.rmG.tsv", header = TRUE)
+hco_after <- read.table("hco.res.data.pc.rmLow.rmG.tsv", header = TRUE)
+
+```
+
+```{r}
+
+ppa_before$chromosome <- sub("^PPA_Chr", "", ppa_before$chromosome)
+ppa_after$chromosome <- sub("^PPA_Chr", "", ppa_after$chromosome)
+
+# Define a function to add chromosome_group column
+add_chromosome_group <- function(df) {
+  df$chromosome_group <- ifelse(df$chromosome == "X", "X", "A")
+  return(df)
+}
+
+df <- c("ppa_before", "cel_before", "oti_before", "ppa_after", "cel_after", "oti_after")
+
+# iterate with the above function
+for (df_name in df) {
+  # Get the data frame by its name
+  current_df <- get(df_name)
+  
+  # Subset columns from the data frame
+  current_df <- add_chromosome_group(current_df)
+  
+  # Update the data frame in the global environment
+  assign(df_name, current_df)
+}
+
+bma_before$chromosome_group <- ifelse(bma_before$chromosome == "Bm_v4_ChrX_scaffold_001", "X", "A")
+bma_after$chromosome_group <- ifelse(bma_after$chromosome == "Bm_v4_ChrX_scaffold_001", "X", "A")
+
+hco_before$chromosome_group <- ifelse(hco_before$chromosome == "hcontortus_chrX_Celeg_TT_arrow_pilon", "X", "A")
+hco_after$chromosome_group <- ifelse(hco_after$chromosome == "hcontortus_chrX_Celeg_TT_arrow_pilon", "X", "A")
+
+```
+
+```{r}
+
+bma_before$species <- "B. malayi"
+ppa_before$species <- "P. pacificus"
+cel_before$species <- "C. elegans"
+oti_before$species <- "O. tipulae"
+hco_before$species <- "H. contortus"
+
+combined_before <- rbind(bma_before, ppa_before, cel_before, oti_before, hco_before)
+
+```
+
+```{r}
+
+library(dplyr)
+
+summ_before <- combined_before %>%
+  group_by(species, chromosome_group) %>%
+  summarize(n = n(), 
+            mean = mean(log2FoldChange, na.rm = TRUE),
+            median = median(log2FoldChange, na.rm = TRUE),
+            variance = var(log2FoldChange, na.rm = TRUE),
+            sd = sd(log2FoldChange, na.rm = TRUE),
+            ci_low = mean - qt(0.975, df = n - 1) * (sd / sqrt(n)),
+            ci_high = mean + qt(0.975, df = n - 1) * (sd / sqrt(n)))
+
+```
+
+```{r}
+
+chrom_colors = c("#BBBBBB", "#D55E00")
+
+library(ggplot2)
+
+# Reorder the levels of 'species' to match your desired order
+combined_before$species <- factor(combined_before$species, levels = c("B. malayi", "P. pacificus", "C. elegans", "O. tipulae", "H. contortus"))
+
+# Reorder the levels of 'chromosome_group' to match your desired order
+combined_before$chromosome_group <- factor(combined_before$chromosome_group, levels = c("A", "X"))
+
+# Plotting
+p1 <- ggplot() +
+  geom_violin(data = combined_before,
+              aes(x = species, 
+                  y = log2FoldChange, 
+                  fill = chromosome_group), 
+              width = 0.8,
+              position = position_dodge(width = 0.825),
+              size = 0.25) +
+  geom_errorbar(data = summ_before,
+                aes(x = species, 
+                    ymin = ci_low, 
+                    ymax = ci_high, 
+                    group = chromosome_group),
+                position = position_dodge(width = 0.825),  # Dodge error bars for better                   visibility
+                width = 0.1,
+                size = 0.2,
+                color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black",
+             size = 0.1) +
+  geom_hline(yintercept = 1, 
+             linetype = "dashed", 
+             color = "black",
+             size = 0.1) +
+  geom_hline(yintercept = -1, 
+             linetype = "dashed", 
+             color = "black",
+             size = 0.1) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  ylim(-13, 10) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.x = element_blank())
+
+file.name = "Figure3A_top.pdf"
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = 10, height = 4, units = "in")
+
+```
+
+```{r}
+
+bma_after$species <- "B. malayi"
+ppa_after$species <- "P. pacificus"
+cel_after$species <- "C. elegans"
+oti_after$species <- "O. tipulae"
+hco_after$species <- "H. contortus"
+
+combined_after <- rbind(bma_after, ppa_after, cel_after, oti_after, hco_after)
+
+```
+
+```{r}
+
+summ_after <- combined_after %>%
+  group_by(species, chromosome_group) %>%
+  summarize(n = n(), 
+            mean = mean(log2FoldChange, na.rm = TRUE),
+            median = median(log2FoldChange, na.rm = TRUE),
+            variance = var(log2FoldChange, na.rm = TRUE),
+            sd = sd(log2FoldChange, na.rm = TRUE),
+            ci_low = mean - qt(0.975, df = n - 1) * (sd / sqrt(n)),
+            ci_high = mean + qt(0.975, df = n - 1) * (sd / sqrt(n)))
+
+```
+
+```{r}
+
+# Reorder the levels of 'species' to match your desired order
+combined_after$species <- factor(combined_after$species, levels = c("B. malayi", "P. pacificus", "C. elegans", "O. tipulae", "H. contortus"))
+
+# Reorder the levels of 'chromosome_group' to match your desired order
+combined_after$chromosome_group <- factor(combined_after$chromosome_group, levels = c("A", "X"))
+
+# Plotting
+p2 <- ggplot() +
+  geom_violin(data = combined_after,
+              aes(x = species, 
+                  y = log2FoldChange, 
+                  fill = chromosome_group), 
+              width = 0.8,
+              position = position_dodge(width = 0.825),
+              size = 0.25) +
+  geom_errorbar(data = summ_after,
+                aes(x = species, 
+                    ymin = ci_low, 
+                    ymax = ci_high, 
+                    group = chromosome_group),
+                position = position_dodge(width = 0.825),  # Dodge error bars for better visibility
+                width = 0.1,
+                size = 0.2,
+                color = "black") +
+  labs(x = "Species") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black",
+             size = 0.1) +
+  geom_hline(yintercept = 1, 
+             linetype = "dashed", 
+             color = "black",
+             size = 0.1) +
+  geom_hline(yintercept = -1, 
+             linetype = "dashed", 
+             color = "black",
+             size = 0.1) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  ylim(-3, 3) +  
+  theme_classic() +
+  theme(axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = "Figure_4A_bottom.pdf"
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = 10, height = 4, units = "in")
+
+```
+
+```{r}
+
+library(ggplot2)
+library(patchwork)
+
+# Combine the plots using patchwork
+combined_plots <- p1 / plot_spacer() / p2 + plot_layout(axis_titles = "collect", heights = c(1, 0.001, 1), widths = c(1, 1, 1))
+
+# Display the combined plot
+combined_plots
+
+file.name = "Figure_4A_smaller.pdf"
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = 6, height = 5, units = "in")
+
+```

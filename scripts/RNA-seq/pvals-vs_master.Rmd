@@ -1,0 +1,60 @@
+---
+title: "CEW1_GSE213886_master"
+author: "Avrami"
+date: "2023-12-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load data
+```{r}
+
+FR3_A_pvals_vs = read.table("FR3_A_pvalues.vs.tsv", header = TRUE)
+PS312_pvals_vs = read.table("PS312_pvalues.vs.tsv", header = TRUE)
+Cel_pvals_vs <- read.table("N2_pvalues.vs.tsv", header = TRUE)
+CB428_pvals_vs = read.table("CB428_pvalues.vs.tsv", header = TRUE)
+CEW1_pvals_vs = read.table("CEW1_pvalues.vs.tsv", header = TRUE)
+ISE_pvals_vs = read.table("ISE_pvalues.vs.tsv", header = TRUE)
+
+All_pvalues_vs <- rbind(FR3_A_pvals_vs, PS312_pvals_vs, Cel_pvals_vs, CB428_pvals_vs, CEW1_pvals_vs, ISE_pvals_vs)
+
+```
+
+```{r}
+
+custom_colors_2 <- c("#DDDDDD", "#BBBBBB", "#999999", "#777777", "#555555", "#D55E00")
+
+All_pvalues_vs$species <- factor(All_pvalues_vs$species, levels = unique(All_pvalues_vs$species))
+
+library(ggplot2)
+
+p8 <- ggplot(All_pvalues_vs, aes(x = factor(species), y = neglog10, color = factor(chromosome)))
+
+p8 + 
+  geom_jitter(position = position_dodge(width = 0.4), 
+              size = 2) +
+  labs(x = "Species", 
+       y = "-log10(p-value)", 
+       color = "chromosome") +
+  scale_color_manual(values = custom_colors_2,
+                     breaks = c("I", "II", "III", "IV", "V", "X"),
+                     labels = c("I", "II", "III", "IV", "V", "X")) +
+  ylim(-20, 200) +
+  geom_vline(xintercept = c(1.5, 2.5, 3.5,4.5, 5.5, 6.5), 
+             linetype = "dashed", 
+             color = "black", 
+             size = 0.5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.text = element_text(size=8),
+        legend.title = element_text(size=10))
+
+file.name = "pvals-vs_pc_exp_soma_jitter.pdf"
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = 6, height = 2, units = "in")
+
+```
