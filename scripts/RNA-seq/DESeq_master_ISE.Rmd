@@ -1,0 +1,634 @@
+---
+title: "DESeq_master"
+author: "Avrami"
+date: "2023-12-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load TPM data
+```{r}
+
+## VARIABLES ##
+tpm.tsv = "ISE_A_salmon.merged.gene_tpm.tsv"
+column_names_1 <- c("gene_ID", "gene_name", "F_REP1", "F_REP2", "F_REP3", "M_REP1", "M_REP2", "M_REP3")
+##
+
+tpmData <- read.table(tpm.tsv, header = TRUE)
+colnames(tpmData) <- column_names_1
+
+```
+
+Load BED file
+```{r}
+
+## VARIABLES ##
+bed="haemonchus_contortus.PRJEB506.WBPS16.annotations.bed"
+bed_pc="haemonchus_contortus.PRJEB506.WBPS16.annotations_protein-coding.bed"
+column_names_2 <- c("chromosome", "gene_ID") # do not need to change this
+## 
+
+# load data
+BED <- read.table(bed, header = FALSE)
+BED_protein_coding <- read.table(bed_pc, header = FALSE)
+
+library(dplyr)
+
+# subset the columns with chromosome number and gene name
+BED <- BED %>% select(V1, V4)
+BED_protein_coding <- BED_protein_coding %>% select(V1, V4)
+
+colnames(BED) <- column_names_2
+colnames(BED_protein_coding) <- column_names_2
+
+# Remove the prefix before each gene name. This will let you merge by gene_ID later on
+BED$gene_ID <- sub("^gene:", "", BED$gene_ID)
+BED_protein_coding$gene_ID <- sub("^gene:", "", BED_protein_coding$gene_ID)
+
+```
+
+Subset "gene_ID" and "*_TPM_REP*" columns from tpmData
+```{r}
+
+## VARIABLES ##
+column_names_2 <- c("gene_ID", "F_REP1", "F_REP2", "F_REP3", "M_REP1", "M_REP2", "M_REP3")
+##
+
+# a function to subset columns
+subset_columns <- function(df, columns_to_keep) {
+  return(select(df, all_of(columns_to_keep)))
+}
+
+TPM_1 <- c("tpmData")
+
+# iterate with the above function
+for (df_name in TPM_1) {
+  # Get the data frame by its name
+  current_df <- get(df_name)
+  
+  # Subset columns from the data frame
+  current_df <- subset_columns(current_df, column_names_2)
+  
+  # Update the data frame in the global environment
+  assign(df_name, current_df)
+}
+
+```
+
+Merge BED file with tpmData files by chromosome
+```{r}
+
+# a function to merge tpmData with BED by chromosome
+merge_df <- function(df1, df2, by_column) {
+  return(merge(df1, df2, by = by_column))
+}
+
+df_to_merge <- get("BED")
+by_column <- "gene_ID"
+TPM = c("tpmData")
+
+# iterate with the above functionm
+for (df_name in TPM) {
+  # Get the data frame by its name
+  current_df <- get(df_name) # this retrieves the actual data to work on. Without get(), it'll save current_df as a string
+  
+  # merge the dataframes by gene_name
+  current_df <- merge_df(df_to_merge, current_df, by_column)
+  
+  # Update the data frame in the global environment
+  assign(df_name, current_df)
+}
+  
+```
+
+Inspect the distribution of TPM values. Most should be small.
+```{r}
+
+hist(tpmData$F_REP1, breaks = 500, xlim = range(0,5000), freq = FALSE, xlab = "TPM")
+
+hist(tpmData$F_REP2, breaks = 500, xlim = range(0,5000), freq = FALSE, xlab = "TPM")
+
+hist(tpmData$F_REP3, breaks = 500, xlim = range(0,5000), freq = FALSE, xlab = "TPM")
+
+hist(tpmData$M_REP1, breaks = 500, xlim = range(0,5000), freq = FALSE, xlab = "TPM")
+
+hist(tpmData$M_REP2, breaks = 500, xlim = range(0,5000), freq = FALSE, xlab = "TPM")
+
+hist(tpmData$M_REP3, breaks = 500, xlim = range(0,5000), freq = FALSE, xlab = "TPM")
+
+```
+
+DESeq
+
+Load package
+```{r}
+
+library(DESeq2)
+
+```
+
+Load data
+```{r}
+
+## VARIABLES ##
+counts.tsv = "ISE_A_salmon.merged.gene_counts.tsv"
+##
+
+countsData <- read.table(counts.tsv, header = TRUE)
+
+# remove gene name column (this is the common name)
+countsData <- countsData[,-2]
+
+colnames(countsData) <- column_names_2
+
+# Make first column with the gene ID the row names
+rownames(countsData) <- countsData[,1]
+
+# remove first column with gene ID
+countsData <- countsData[,-1]
+
+
+```
+
+Make metaData dataframe
+```{r}
+
+## VARIABLES ##
+ID = c("F_REP1", "F_REP2", "F_REP3", "M_REP1", "M_REP2", "M_REP3")
+Sex = c("F", "F", "F", "M", "M", "M")
+##
+
+metaData <- data.frame(id = ID, sex = Sex)
+
+sex <- metaData[,2]
+
+```
+
+Make DESeq object
+```{r}
+
+# Make DESeq object
+dds <- DESeqDataSetFromMatrix(countData=round(countsData), 
+                              colData=metaData, 
+                              design=~sex)
+
+# Set male as the reference (i.e., denominator, control)
+dds$sex <- relevel(dds$sex, ref = "M")
+
+```
+
+Run DESeq and subset results
+```{r}
+
+ddds <- DESeq(dds)
+
+res <- results(ddds)
+
+res.data <- data.frame(res)
+
+res.data$genes <- rownames(res.data)
+
+```
+
+Inspect data. Plot log2 fold change as a function of p value
+```{r}
+
+library(ggplot2)
+
+res.data$neglog10padj=-log10(res.data$padj)
+
+ggplot(res.data, aes(x = log2FoldChange, y = neglog10padj)) +
+    labs(x = "log2 fold change", 
+         y = "-log10(adjusted p-value)") +
+    geom_point()
+
+# do this on a negative log10 scale too, which is a volcano plot
+
+```
+
+Plot using DESeq data
+```{r}
+
+## VARIABLES ##
+aut_and_X = c("hcontortus_chr1_Celeg_TT_arrow_pilon", "hcontortus_chr2_Celeg_TT_arrow_pilon", "hcontortus_chr3_Celeg_TT_arrow_pilon", "hcontortus_chr4_Celeg_TT_arrow_pilon", "hcontortus_chr5_Celeg_TT_arrow_pilon", "hcontortus_chrX_Celeg_TT_arrow_pilon")
+##
+
+# subset the log2foldchange, padj, and genes columns, and change the column names
+res.data <- res.data[, c(2, 6, 7)]
+colnames(res.data) <- c("log2FoldChange", "padj", "gene_ID")
+
+# merge the BED file with res.data to assign chromosomes to each row
+res.data.all_genes <- merge(BED, res.data, by = "gene_ID")
+res.data.pc <- merge(BED_protein_coding, res.data, by = "gene_ID") 
+
+# select the autosomes and X chromosome
+res.data.all_genes <- res.data.all_genes[res.data.all_genes$chromosome %in% aut_and_X, ]
+res.data.pc <- res.data.pc[res.data.pc$chromosome %in% aut_and_X, ]
+
+# remove NAs
+res.data.all_genes <- na.omit(res.data.all_genes)
+res.data.pc <- na.omit(res.data.pc)
+
+```
+
+Plot
+```{r}
+
+## VARIABLES ##
+# manually change these based on the output of summarize function
+custom_labels_all <- c("I\nn=2986", "II\nn=2800", "III\nn=2722", "IV\nn=3178", "V\nn=2851", "X\nn=1579") # too lazy to change these numbers
+custom_labels_pc <- c("I\nn=1955", "II\nn=1796", "III\nn=1711", "IV\nn=1651", "X\nn=3053") # too lazy to change these numbers
+chrom_colors = c("#DDDDDD", "#BBBBBB", "#999999", "#777777", "#555555", "#D55E00")
+title_all = "H. contortus adult female/male, all genes"
+title_pc = "H. contortus adult female/male, protein coding"
+##
+
+## All genes, unfiltered
+summ_all <- res.data.all_genes %>%
+  group_by(chromosome) %>%
+  summarize(n = n(), 
+            mean = mean(log2FoldChange, na.rm = TRUE),
+            median = median(log2FoldChange, na.rm = TRUE),
+            variance = var(log2FoldChange, na.rm = TRUE),
+            sd = sd(log2FoldChange, na.rm = TRUE),
+            ci_low = mean - qt(0.975, df = n - 1) * (sd / sqrt(n)),
+            ci_high = mean + qt(0.975, df = n - 1) * (sd / sqrt(n)))
+
+p <- ggplot()
+
+p + geom_violin(res.data.all_genes, 
+                mapping = aes(x = chromosome, 
+                              y = log2FoldChange,
+                              fill = chromosome)) +
+    geom_point(mapping = aes(chromosome, mean), 
+               data = summ_all, 
+               size = 0.5) +
+    geom_errorbar(mapping = aes(x = chromosome, 
+                                ymin = ci_low, 
+                                ymax = ci_high), 
+                  data = summ_all, width = 0.2) +
+    labs(x = "chromosome", 
+         y = "log2(female/male)",
+         title = title_all) +
+    scale_fill_manual(values = chrom_colors,
+                      guide = "none") +
+    geom_hline(yintercept = 0, 
+               linetype = "dashed", 
+               color = "black") +
+    geom_hline(yintercept = 1, 
+               linetype = "dashed", 
+               color = "black") +
+    geom_hline(yintercept = -1, 
+               linetype = "dashed", 
+               color = "black") +
+    scale_x_discrete(labels = custom_labels_all) +
+    ylim(-10, +10) +
+    theme_classic()
+
+## Protein coding genes, unfiltered
+summ_pc <- res.data.pc %>%
+  group_by(chromosome) %>%
+  summarize(n = n(), 
+            mean = mean(log2FoldChange, na.rm = TRUE),
+            median = median(log2FoldChange, na.rm = TRUE),
+            variance = var(log2FoldChange, na.rm = TRUE),
+            sd = sd(log2FoldChange, na.rm = TRUE),
+            ci_low = mean - qt(0.975, df = n - 1) * (sd / sqrt(n)),
+            ci_high = mean + qt(0.975, df = n - 1) * (sd / sqrt(n)))
+
+p + geom_violin(res.data.pc, 
+                mapping = aes(x = chromosome, 
+                              y = log2FoldChange,
+                              fill = chromosome)) +
+    geom_point(mapping = aes(chromosome, mean), 
+               data = summ_pc, 
+               size = 0.5) +
+    geom_errorbar(mapping = aes(x = chromosome, 
+                                ymin = ci_low, 
+                                ymax = ci_high), 
+                  data = summ_pc, width = 0.2) +
+    labs(x = "chromosome", 
+         y = "log2(female/male)",
+         title = title_pc) +
+    scale_fill_manual(values = chrom_colors,
+                      guide = "none") +
+    geom_hline(yintercept = 0, 
+               linetype = "dashed", 
+               color = "black") +
+    geom_hline(yintercept = 1, 
+               linetype = "dashed", 
+               color = "black") +
+    geom_hline(yintercept = -1, 
+               linetype = "dashed", 
+               color = "black") +
+    scale_x_discrete(labels = custom_labels_pc) +
+    ylim(-13, +10) +
+    theme_classic()
+
+```
+
+Remove lowly expressed genes
+```{r}
+
+tpmData.pc <- merge(tpmData, BED_protein_coding, by = c("gene_ID", "chromosome"))
+
+F_tpmData_cols <- tpmData.pc[,3:5]
+means_F <- rowMeans(F_tpmData_cols)
+tpmData.pc$mean_F <- means_F
+
+M_tpmData_cols <- tpmData.pc[,6:8]
+means_M <- rowMeans(M_tpmData_cols)
+tpmData.pc$mean_M <- means_M
+
+F_tpmData.pc.low <- tpmData.pc$gene_ID[tpmData.pc$mean_F < 1] # 10,022 genes
+M_tpmData.pc.low <- tpmData.pc$gene_ID[tpmData.pc$mean_M < 1] # 8,877 genes
+both_tpmData.pc.low <- base::intersect(F_tpmData.pc.low, M_tpmData.pc.low) #7,957 genes
+
+res.data.pc.rmLow <- res.data.pc[!(res.data.pc$gene_ID %in% both_tpmData.pc.low), ] #11,534 genes (most were already removed by removing NAs)
+
+```
+
+```{r}
+
+## VARIABLES ##
+custom_labels_pc.rmLow <- c("I\nn=2307", "II\nn=2025", "III\nn=2080", "IV\nn=2170", "V\nn=2030", "X\nn=922")
+title_pc.rmLow ="H. contortus adult female/male, protein coding, expressed"
+##
+
+summ_pc.rmLow <- res.data.pc.rmLow %>%
+  group_by(chromosome) %>%
+  summarize(n = n(), 
+            mean = mean(log2FoldChange, na.rm = TRUE),
+            median = median(log2FoldChange, na.rm = TRUE),
+            variance = var(log2FoldChange, na.rm = TRUE),
+            sd = sd(log2FoldChange, na.rm = TRUE),
+            ci_low = mean - qt(0.975, df = n - 1) * (sd / sqrt(n)),
+            ci_high = mean + qt(0.975, df = n - 1) * (sd / sqrt(n)))
+
+p + geom_violin(res.data.pc.rmLow, 
+                mapping = aes(x = chromosome, 
+                              y = log2FoldChange,
+                              fill = chromosome)) +
+    geom_point(mapping = aes(chromosome, mean), 
+               data = summ_pc.rmLow, 
+               size = 0.5) +
+    geom_errorbar(mapping = aes(x = chromosome, 
+                                ymin = ci_low, 
+                                ymax = ci_high), 
+                  data = summ_pc.rmLow, width = 0.2) +
+    labs(x = "chromosome", 
+         y = "log2(hermaphrodite/male)",
+         title = title_pc.rmLow) +
+    scale_fill_manual(values = chrom_colors,
+                      guide = "none") +
+    geom_hline(yintercept = 0, 
+               linetype = "dashed", 
+               color = "black") +
+    geom_hline(yintercept = 1, 
+               linetype = "dashed", 
+               color = "black") +
+    geom_hline(yintercept = -1, 
+               linetype = "dashed", 
+               color = "black") +
+    scale_x_discrete(labels = custom_labels_pc.rmLow) +
+    ylim(-13, +10) +
+    theme_classic()
+
+#file.name = "CB428_HvM_pc_exp_violin.pdf"
+#ggsave(filename = file.name, dpi = 300, device = "pdf", width = 7, height = 5, units = "in")
+
+```
+
+Plot the distribution of log2 fold change values (FIGURE S8)
+```{r}
+
+## VARIABLES ##
+title_dist = "H. contortus, female/male, protein coding, expressed"
+chrom_labels = c("I", "II", "III", "IV", "V", "X")
+##
+
+res.data.pc.rmLow$abs <- abs(res.data.pc.rmLow$log2FoldChange)
+
+p2 <- ggplot(res.data.pc.rmLow, aes(x = abs, fill = chromosome))
+
+p2 + geom_histogram(bins = 125, 
+                    color = "black", 
+                    size = 0.25) +
+    scale_fill_manual(values = chrom_colors, 
+                      labels = chrom_labels) +
+    geom_vline(xintercept = 3,
+               size = 0.5) +
+    theme_classic() +
+    theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          legend.text = element_text(size=12.5),
+          legend.title = element_text(size=15),
+          legend.position = c(0.95, 0.95),
+          legend.justification = c("right", "top"))
+
+file.name = "ISE_HvM_pc_exp_dist.pdf"
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = 7, height = 4, units = "in")
+
+```
+
+Remove the gonadal only genes (abs log2 > 3)
+```{r}
+
+res.data.pc.rmLow.rmG <- res.data.pc.rmLow[res.data.pc.rmLow$abs < 3, ]
+
+```
+
+Plot without gonadal genes (Figure 3A, bottom panel)
+```{r}
+
+## VARIABLES ##
+custom_labels_pc.rmLow.rmG <- c("I\nn=1796", "II\nn=1446", "III\nn=1657", "IV\nn=1531", "V\nn=1363", "X\nn=716")
+title_pc.rmLow.rmG = "H. contortus, female/male, protein coding, expressed, soma"
+##
+
+# by mean
+summ_pc.rmLow.rmG <- res.data.pc.rmLow.rmG %>%
+  group_by(chromosome) %>%
+  summarize(n = n(), 
+            mean = mean(log2FoldChange, na.rm = TRUE), 
+            variance = var(log2FoldChange, na.rm = TRUE),
+            sd = sd(log2FoldChange, na.rm = TRUE),
+            ci_low = mean - qt(0.975, df = n - 1) * (sd / sqrt(n)),
+            ci_high = mean + qt(0.975, df = n - 1) * (sd / sqrt(n)))
+
+
+p + geom_violin(res.data.pc.rmLow.rmG, 
+                mapping = aes(x = chromosome, 
+                              y = log2FoldChange,
+                              fill = chromosome),
+                size = 0.25) +
+    geom_errorbar(mapping = aes(x = chromosome, 
+                                ymin = ci_low, 
+                                ymax = ci_high), 
+                  data = summ_pc.rmLow.rmG, 
+                  width = 0.1,
+                  size = 0.2) +
+    scale_fill_manual(values = chrom_colors,
+                      guide = "none") +
+    geom_hline(yintercept = 0, 
+               linetype = "dashed", 
+               color = "black",
+               size = 0.1) +
+    geom_hline(yintercept = 1, 
+               linetype = "dashed", 
+               color = "black",
+               size = 0.1) +
+    geom_hline(yintercept = -1, 
+               linetype = "dashed", 
+               color = "black",
+               size = 0.1) +
+    scale_x_discrete(labels = custom_labels_pc.rmLow.rmG) +
+    ylim(-3, +3) +
+    theme_classic() +
+    theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          axis.text.x = element_text(size = 12),
+          axis.text.y = element_text(size = 10))
+
+
+
+file.name = "ISE_HvM_pc_exp_soma_violin.pdf"
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = 7, height = 4, units = "in")
+
+```
+
+Save expressed and expressed, soma dataframes for figure 3A
+```{r}
+
+write.table(res.data.pc.rmLow, "hco_res.data.pc.rmLow.tsv", sep = "\t", row.names = FALSE, col.names = TRUE)
+write.table(res.data.pc.rmLow.rmG, "hco_res.data.pc.rmLow.rmG.tsv", sep = "\t", row.names = FALSE, col.names = TRUE)
+
+```
+
+Subset chromosomes
+```{r}
+
+## VARIABLES ##
+chrI = "hcontortus_chr1_Celeg_TT_arrow_pilon"
+chrII = "hcontortus_chr2_Celeg_TT_arrow_pilon"
+chrIII = "hcontortus_chr3_Celeg_TT_arrow_pilon"
+chrIV = "hcontortus_chr4_Celeg_TT_arrow_pilon"
+chrV = "hcontortus_chr5_Celeg_TT_arrow_pilon"
+chrX = "hcontortus_chrX_Celeg_TT_arrow_pilon"
+##
+
+res.data.pc.rmLow.rmG.I <- res.data.pc.rmLow.rmG$log2FoldChange[res.data.pc.rmLow.rmG$chromosome == chrI]
+res.data.pc.rmLow.rmG.II <- res.data.pc.rmLow.rmG$log2FoldChange[res.data.pc.rmLow.rmG$chromosome == chrII]
+res.data.pc.rmLow.rmG.III <- res.data.pc.rmLow.rmG$log2FoldChange[res.data.pc.rmLow.rmG$chromosome == chrIII]
+res.data.pc.rmLow.rmG.IV <- res.data.pc.rmLow.rmG$log2FoldChange[res.data.pc.rmLow.rmG$chromosome == chrIV]
+res.data.pc.rmLow.rmG.V <- res.data.pc.rmLow.rmG$log2FoldChange[res.data.pc.rmLow.rmG$chromosome == chrV]
+mean(res.data.pc.rmLow.rmG.V)
+res.data.pc.rmLow.rmG.X <- res.data.pc.rmLow.rmG$log2FoldChange[res.data.pc.rmLow.rmG$chromosome == chrX]
+
+# these are sanity checks. compare with your summary statistics
+mean(res.data.pc.rmLow.rmG.I)
+mean(res.data.pc.rmLow.rmG.II)
+mean(res.data.pc.rmLow.rmG.III)
+mean(res.data.pc.rmLow.rmG.IV)
+mean(res.data.pc.rmLow.rmG.X)
+
+length(res.data.pc.rmLow.rmG.I)
+length(res.data.pc.rmLow.rmG.II)
+length(res.data.pc.rmLow.rmG.III)
+length(res.data.pc.rmLow.rmG.IV)
+length(res.data.pc.rmLow.rmG.X)
+
+
+```
+Subset all but one chromosome
+```{r}
+
+## VARIABLES ##
+autosomes <- c(chrI, chrII, chrIII, chrIV)
+notI <- c(chrII, chrIII, chrIV, chrX)
+notII <- c(chrI, chrIII, chrIV, chrX)
+notIII <- c(chrI, chrII, chrIV, chrX)
+notIV <- c(chrI, chrII, chrIII, chrX)
+notV <- c(chrI, chrII, chrIII, chrIV, chrX)
+
+# subset
+res.data.pc.rmLow.rmG.A <- res.data.pc.rmLow.rmG$log2FoldChange[res.data.pc.rmLow.rmG$chromosome %in% autosomes]
+
+
+res.data.pc.rmLow.rmG.notI <- res.data.pc.rmLow.rmG$log2FoldChange[res.data.pc.rmLow.rmG$chromosome %in% notI]
+res.data.pc.rmLow.rmG.notII <- res.data.pc.rmLow.rmG$log2FoldChange[res.data.pc.rmLow.rmG$chromosome %in% notII]
+res.data.pc.rmLow.rmG.notIII <- res.data.pc.rmLow.rmG$log2FoldChange[res.data.pc.rmLow.rmG$chromosome %in% notIII]
+res.data.pc.rmLow.rmG.notIV <- res.data.pc.rmLow.rmG$log2FoldChange[res.data.pc.rmLow.rmG$chromosome %in% notIV]
+res.data.pc.rmLow.rmG.notV <- res.data.pc.rmLow.rmG$log2FoldChange[res.data.pc.rmLow.rmG$chromosome %in% notV]
+
+# sanity check
+mean(res.data.pc.rmLow.rmG.A)
+mean(res.data.pc.rmLow.rmG.notI)
+mean(res.data.pc.rmLow.rmG.notII)
+mean(res.data.pc.rmLow.rmG.notIII)
+mean(res.data.pc.rmLow.rmG.notIV)
+mean(res.data.pc.rmLow.rmG.notV)
+
+length(res.data.pc.rmLow.rmG.A)
+length(res.data.pc.rmLow.rmG.notI)
+length(res.data.pc.rmLow.rmG.notII)
+length(res.data.pc.rmLow.rmG.notIII)
+length(res.data.pc.rmLow.rmG.notIV)
+length(res.data.pc.rmLow.rmG.notV)
+
+```
+Wilcox test one vs rest
+```{r}
+
+wilcox.Xvs <- wilcox.test(res.data.pc.rmLow.rmG.X, res.data.pc.rmLow.rmG.A, alternative = "two.sided")
+wilcox.Ivs <- wilcox.test(res.data.pc.rmLow.rmG.I, res.data.pc.rmLow.rmG.notI, alternative = "two.sided")
+wilcox.IIvs <- wilcox.test(res.data.pc.rmLow.rmG.II, res.data.pc.rmLow.rmG.notII, alternative = "two.sided")
+wilcox.IIIvs <- wilcox.test(res.data.pc.rmLow.rmG.III, res.data.pc.rmLow.rmG.notIII, alternative = "two.sided")
+wilcox.IVvs <- wilcox.test(res.data.pc.rmLow.rmG.IV, res.data.pc.rmLow.rmG.notIV, alternative = "two.sided")
+wilcox.Vvs <- wilcox.test(res.data.pc.rmLow.rmG.V, res.data.pc.rmLow.rmG.notV, alternative = "two.sided")
+
+pvalue.Xvs <- wilcox.Xvs$p.value
+pvalue.Ivs <- wilcox.Ivs$p.value
+pvalue.IIvs <- wilcox.IIvs$p.value
+pvalue.IIIvs <- wilcox.IIIvs$p.value
+pvalue.IVvs <- wilcox.IVvs$p.value
+pvalue.Vvs <- wilcox.Vvs$p.value
+
+```
+
+Make a dataframe of the p-values and take -log10(p-value)
+```{r}
+
+## VARIABLES ##
+all_vs = c(pvalue.Ivs, pvalue.IIvs, pvalue.IIIvs, pvalue.IVvs, pvalue.Vvs, pvalue.Xvs)
+chromosomes = c("I", "II", "III", "IV", "V", "X")
+##
+
+pvals.vs <- all_vs
+
+pvalues.vs <- (data.frame(pvals = pvals.vs))
+pvalues.vs$neglog10 <- -log10(pvalues.vs$pvals) 
+
+
+pvalues.vs$chromosome <- chromosomes
+
+```
+
+```{r}
+
+pvalues.vs$species <- "H. contortus"
+write.table(pvalues.vs, "ISE_pvalues.vs.tsv", sep = "\t", row.names =FALSE, col.names = TRUE)
+
+```
+
+Plot -log10(p-value) by chromosome. 
+```{r}
+
+p3 <- ggplot(pvalues.vs, aes(x = chromosome, y = neglog10))
+
+p3 + geom_point()
+
+```
