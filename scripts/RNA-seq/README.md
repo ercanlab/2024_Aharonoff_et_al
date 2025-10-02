@@ -19,8 +19,8 @@ ISE_A_salmon.merged.gene_tpm.tsv (tmp per gene)
 
 02_DESeq_master_ISE.Rmd will take the 
 
-ISE_A_salmon.merged.gene_counts.tsv
-ISE_A_salmon.merged.gene_tpm.tsv
+ISE_A_salmon.merged.gene_counts.tsv,
+ISE_A_salmon.merged.gene_tpm.tsv,
 A bed file of gene annotations (example files provide in directory)
 
 and run DESeq2, make plots, as well as check for statistical significance. This script (as well as similar scripts for other species) was 
