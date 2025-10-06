@@ -1,6 +1,6 @@
 1. See the github page for Juicer.  
 
-https://github.com/aidenlab/juicer.  
+  https://github.com/aidenlab/juicer.  
 
 2. Generate a .hic file with their instructions.  
 
