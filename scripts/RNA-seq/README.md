@@ -2,7 +2,7 @@ In this directory is an example run for Haemonchus contortus (ISE)
 
 #
 
-01_run-nextflow.sh will take...
+01_run-nextflow.sh is a shell script that will take...
 
 samplesheet.csv  
 nextflow.config  
@@ -17,7 +17,7 @@ ISE_A_salmon.merged.gene_tpm.tsv (tmp per gene)
 
 #
 
-02_DESeq_master_ISE.Rmd will take the 
+02_DESeq_master_ISE.Rmd is an R markdown will take the 
 
 ISE_A_salmon.merged.gene_counts.tsv  
 ISE_A_salmon.merged.gene_tpm.tsv  
@@ -33,8 +33,8 @@ ISE_pvalues.vs.tsv (results of one versus rest Wilcox Rank Sum test for each chr
 
 #
 
-03_Log2_plot_all_species.Rmd catenates the *rmLow.tsv and *rmLow.rmG.tsv files for each species to make Figure 4A. 
+03_Log2_plot_all_species.Rmd is na R markdown that catenates the *rmLow.tsv and *rmLow.rmG.tsv files for each species to make Figure 4A. 
 
 #
 
-04_pvals-vs_master.Rmd catenates the *pvalues.vs.tsv for each species to make the one vs rest plot shown in Figure 4D.
+04_pvals-vs_master.Rmd is na R markdown catenates the *pvalues.vs.tsv for each species to make the one vs rest plot shown in Figure 4D.
