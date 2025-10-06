@@ -4,6 +4,6 @@
 
 4. Generate a .hic file with their instructions.  
 
-5. Convert from hic to cool with 01-hicToCool.sh.  
+5. Convert from hic to cool with the 01-hicToCool.sh script.  
 
 6. Use the cool file to generate the plots in Figures 2, 3, and S4-S9.
