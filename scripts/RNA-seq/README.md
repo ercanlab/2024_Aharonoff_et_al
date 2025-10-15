@@ -33,8 +33,8 @@ ISE_pvalues.vs.tsv (results of one versus rest Wilcox Rank Sum test for each chr
 
 #
 
-03_Log2_plot_all_species.Rmd is na R markdown that catenates the *rmLow.tsv and *rmLow.rmG.tsv files for each species to make Figure 4A. 
+03_Log2_plot_all_species.Rmd is a R markdown that catenates the *rmLow.tsv and *rmLow.rmG.tsv files for each species to make Figure 4A. 
 
 #
 
-04_pvals-vs_master.Rmd is na R markdown catenates the *pvalues.vs.tsv for each species to make the one vs rest plot shown in Figure 4D.
+04_pvals-vs_master.Rmd is a R markdown catenates the *pvalues.vs.tsv for each species to make the one vs rest plot shown in Figure 4D.
