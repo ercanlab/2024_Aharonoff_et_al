@@ -12,4 +12,4 @@ phylogenetic_analysis contains scripts used to generate trees in Figures 1C, S2,
 
 **Detailed protocols for sample collection can be found in the sample_collection directory**
 
-This page is a work in progress, if you don't see something, be patient, it will be up soon. 
+This page is a work in progress, if you don't see something, be patient, it will be up soon. If you need something that is not up yet, feel free to contact me at avramiaharonoff@gmail.com.
