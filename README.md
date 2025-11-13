@@ -1,6 +1,6 @@
 This repository contains scripts used in 
 
-Aharonoff, A., Kim, J., Washington, A., & Ercan, S. Parallel evolution of X chromosome specific SMC complexes in two nematode lineages. Preprint at https://doi.org/10.1101/2024.05.21.595224
+Aharonoff A, Kim J, Washington A, Ercan S. 2025. Parallel evolution of X chromosome-specific SMC complexes in two nematode lineages. Wittkopp P, editor. Molecular Biology and Evolution:msaf270. 
 
 as well as a rescaffolded genome for Pristionchus pacificus (PS312), lifted over annotations for protein coding genes, and detailed collection protocols for each species of worm used in this study.
 
