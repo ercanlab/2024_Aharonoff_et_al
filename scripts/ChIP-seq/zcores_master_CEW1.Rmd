@@ -1,0 +1,1328 @@
+---
+title: "ChIP-seq z-score"
+author: "Avrami"
+date: "2024-04-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load libraries
+```{r}
+
+library(dplyr)
+library(ggplot2)
+
+```
+
+Function to add log2 and z-score(log2) columns
+```{r}
+
+add_zscore_column <- function(df) {
+  # Calculate log2 of the 'score' column
+  df$log2score <- log2(df$score)
+  
+  # Calculate z-scores
+  z_scores <- scale(df$log2score)
+  zscores <- z_scores[, 1]
+  
+  # Add z-scores as a new column to the data frame
+  df$zscore <- zscores
+  
+  return(df)
+}
+
+```
+
+Function to summarize data
+```{r}
+
+summarize_data <- function(df) {
+  summary <- df %>%
+  group_by(chromosome) %>%
+  summarize(n = n(), 
+            mean = mean(zscore, na.rm = TRUE),
+            median = median(zscore, na.rm = TRUE),
+            variance = var(zscore, na.rm = TRUE),
+            sd = sd(zscore, na.rm = TRUE),
+            ci_low = mean - qt(0.975, df = n - 1) * (sd / sqrt(n)),
+            ci_high = mean + qt(0.975, df = n - 1) * (sd / sqrt(n)))
+  return(summary)
+    
+}
+
+```
+
+Edit this based on the species you use
+```{r}
+
+chrom_colors = c("#DDDDDD", "#BBBBBB", "#999999", "#777777", "#555555", "#D55E00")
+species <- "CEW1"
+
+```
+
+H4K20me1
+
+Load coverage in gene body files
+```{r}
+
+### variables ###
+## single replicates
+# gene body
+H4K20me1_REP1 = "H4K20me1_ab9051_CEW1_L-24hrs_ext649_AA73_input_AA77_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+H4K20me1_REP2 = "H4K20me1_ab9051_CEW1_L-24hrs_ext759_AA82_input_AA85_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+H4K20me1_REP3 = "H4K20me1_ab9051_CEW1_L-24hrs_ext790_AA89_input_AA96_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+IgG_gene_body_REP1 = "IgG_ab46540_CEW1_L-24hrs_ext649_AA75_input_AA77_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+IgG_gene_body_REP2 = "IgG_ab46540_CEW1_L-24hrs_ext759_AA84_input_AA85_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+IgG_gene_body_REP3 = "IgG_ab46540_CEW1_L-24hrs_ext790_AA91_input_AA96_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+
+## merged
+# gene body
+H4K20me1_merged = "H4K20me1_ab9051_CEW1_L-24hrs_merged_AA73_AA82_AA89_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab" 
+IgG_gene_body_merged = "IgG_ab46540_CEW1_L-24hrs_merged_AA75_AA84_AA91_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+
+###
+
+```
+
+```{r}
+
+H4K20me1_REP1_gene_body <- read.table(H4K20me1_REP1, header = FALSE)
+H4K20me1_REP2_gene_body <- read.table(H4K20me1_REP2, header = FALSE)
+H4K20me1_REP3_gene_body <- read.table(H4K20me1_REP3, header = FALSE)
+IgG_REP1_gene_body <- read.table(IgG_gene_body_REP1, header = FALSE)
+IgG_REP2_gene_body <- read.table(IgG_gene_body_REP2, header = FALSE)
+IgG_REP3_gene_body <- read.table(IgG_gene_body_REP3, header = FALSE)
+
+H4K20me1_merged_gene_body <- read.table(H4K20me1_merged, header = FALSE)
+IgG_merged_gene_body <- read.table(IgG_gene_body_merged, header = FALSE)
+
+
+column_names_1 <- c("chromosome", "start", "end", "score")
+colnames(H4K20me1_REP1_gene_body) <- column_names_1
+colnames(H4K20me1_REP2_gene_body) <- column_names_1
+colnames(H4K20me1_REP3_gene_body) <- column_names_1
+colnames(IgG_REP1_gene_body) <- column_names_1
+colnames(IgG_REP2_gene_body) <- column_names_1
+colnames(IgG_REP3_gene_body) <- column_names_1
+
+colnames(H4K20me1_merged_gene_body) <- column_names_1
+colnames(IgG_merged_gene_body) <- column_names_1
+
+```
+
+```{r}
+
+H4K20me1_REP1_gene_body <- add_zscore_column(H4K20me1_REP1_gene_body)
+H4K20me1_REP2_gene_body <- add_zscore_column(H4K20me1_REP2_gene_body)
+H4K20me1_REP3_gene_body <- add_zscore_column(H4K20me1_REP3_gene_body)
+IgG_REP1_gene_body <- add_zscore_column(IgG_REP1_gene_body)
+IgG_REP2_gene_body <- add_zscore_column(IgG_REP2_gene_body)
+IgG_REP3_gene_body <- add_zscore_column(IgG_REP3_gene_body)
+
+H4K20me1_merged_gene_body <- add_zscore_column(H4K20me1_merged_gene_body)
+IgG_merged_gene_body <- add_zscore_column(IgG_merged_gene_body)
+
+```
+
+```{r}
+
+sum_H4K20me1_REP1_gene_body <- summarize_data(H4K20me1_REP1_gene_body)
+sum_H4K20me1_REP2_gene_body <- summarize_data(H4K20me1_REP2_gene_body)
+sum_H4K20me1_REP3_gene_body <- summarize_data(H4K20me1_REP3_gene_body)
+sum_IgG_REP1_gene_body <- summarize_data(IgG_REP1_gene_body)
+sum_IgG_REP2_gene_body <- summarize_data(IgG_REP2_gene_body)
+sum_IgG_REP3_gene_body <- summarize_data(IgG_REP3_gene_body)
+
+sum_H4K20me1_merged_gene_body <- summarize_data(H4K20me1_merged_gene_body)
+sum_IgG_merged_gene_body <- summarize_data(IgG_merged_gene_body)
+
+```
+
+```{r}
+
+write.table(H4K20me1_merged_gene_body, paste0(species,"_H4K20me1_merged_gene_body.tsv"), sep = "\t", row.names =FALSE, col.names = TRUE)
+
+```
+
+```{r}
+
+w=7
+h=5
+
+ggplot(H4K20me1_REP1_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H4K20me1_REP1_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H4K20me1_REP1_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H4K20me1_REP2_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H4K20me1_REP2_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H4K20me1_REP2_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H4K20me1_REP3_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H4K20me1_REP3_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H4K20me1_REP3_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H4K20me1_merged_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H4K20me1_merged_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H4K20me1_merged_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP1_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_REP1_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_REP1_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP2_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_REP2_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_REP2_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP3_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_REP3_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_REP3_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_merged_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_merged_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_merged_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+```
+
+H3K4me3 TSS
+
+Load files
+```{r}
+
+### variables ###
+## single replicates
+# TSS
+H3K4me3_TSS_REP1 = "H3K4me3_ab8580_CEW1_L-24hrs_ext649_AA74_input_AA77_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_TSS_250bp_flank.tab"
+H3K4me3_TSS_REP2 = "H3K4me3_ab8580_CEW1_L-24hrs_ext759_AA83_input_AA85_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_TSS_250bp_flank.tab"
+H3K4me3_TSS_REP3 = "H3K4me3_ab8580_CEW1_L-24hrs_ext790_AA90_input_AA96_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_TSS_250bp_flank.tab"
+IgG_TSS_REP1 = "IgG_ab46540_CEW1_L-24hrs_ext649_AA75_input_AA77_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_TSS_250bp_flank.tab"
+IgG_TSS_REP2 = "IgG_ab46540_CEW1_L-24hrs_ext759_AA84_input_AA85_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_TSS_250bp_flank.tab"
+IgG_TSS_REP3 = "IgG_ab46540_CEW1_L-24hrs_ext790_AA91_input_AA96_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_TSS_250bp_flank.tab"
+
+## merged
+# TSS
+H3K4me3_TSS_merged = "H3K4me3_ab8580_CEW1_L-24hrs_merged_AA74_AA83_AA90_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_TSS_250bp_flank.tab"
+IgG_TSS_merged = "IgG_ab46540_CEW1_L-24hrs_merged_AA75_AA84_AA91_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_TSS_250bp_flank.tab"
+
+
+```
+
+```{r}
+
+H3K4me3_REP1_TSS <- read.table(H3K4me3_TSS_REP1, header = FALSE)
+H3K4me3_REP2_TSS <- read.table(H3K4me3_TSS_REP2, header = FALSE)
+H3K4me3_REP3_TSS <- read.table(H3K4me3_TSS_REP3, header = FALSE)
+IgG_REP1_TSS <- read.table(IgG_TSS_REP1, header = FALSE)
+IgG_REP2_TSS <- read.table(IgG_TSS_REP2, header = FALSE)
+IgG_REP3_TSS <- read.table(IgG_TSS_REP3, header = FALSE)
+
+H3K4me3_merged_TSS <- read.table(H3K4me3_TSS_merged, header = FALSE)
+IgG_merged_TSS <- read.table(IgG_TSS_merged, header = FALSE)
+
+
+column_names_1 <- c("chromosome", "start", "end", "score")
+colnames(H3K4me3_REP1_TSS) <- column_names_1
+colnames(H3K4me3_REP2_TSS) <- column_names_1
+colnames(H3K4me3_REP3_TSS) <- column_names_1
+colnames(IgG_REP1_TSS) <- column_names_1
+colnames(IgG_REP2_TSS) <- column_names_1
+colnames(IgG_REP3_TSS) <- column_names_1
+
+colnames(H3K4me3_merged_TSS) <- column_names_1
+colnames(IgG_merged_TSS) <- column_names_1
+
+```
+
+
+```{r}
+
+H3K4me3_REP1_TSS <- add_zscore_column(H3K4me3_REP1_TSS)
+H3K4me3_REP2_TSS <- add_zscore_column(H3K4me3_REP2_TSS)
+H3K4me3_REP3_TSS <- add_zscore_column(H3K4me3_REP3_TSS)
+IgG_REP1_TSS <- add_zscore_column(IgG_REP1_TSS)
+IgG_REP2_TSS <- add_zscore_column(IgG_REP2_TSS)
+IgG_REP3_TSS <- add_zscore_column(IgG_REP3_TSS)
+
+H3K4me3_merged_TSS <- add_zscore_column(H3K4me3_merged_TSS)
+IgG_merged_TSS <- add_zscore_column(IgG_merged_TSS)
+
+```
+
+```{r}
+
+sum_H3K4me3_REP1_TSS <- summarize_data(H3K4me3_REP1_TSS)
+sum_H3K4me3_REP2_TSS <- summarize_data(H3K4me3_REP2_TSS)
+sum_H3K4me3_REP3_TSS <- summarize_data(H3K4me3_REP3_TSS)
+sum_IgG_REP1_TSS <- summarize_data(IgG_REP1_TSS)
+sum_IgG_REP2_TSS <- summarize_data(IgG_REP2_TSS)
+sum_IgG_REP3_TSS <- summarize_data(IgG_REP3_TSS)
+
+sum_H3K4me3_merged_TSS <- summarize_data(H3K4me3_merged_TSS)
+sum_IgG_merged_TSS <- summarize_data(IgG_merged_TSS)
+
+```
+
+```{r}
+
+write.table(H3K4me3_merged_TSS, paste0(species,"_H3K4me3_merged_TSS.tsv"), sep = "\t", row.names =FALSE, col.names = TRUE)
+
+```
+
+```{r}
+
+w=7
+h=5
+
+ggplot(H3K4me3_REP1_TSS, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H3K4me3_REP1_TSS, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H3K4me3_REP1_zcore_TSS_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H3K4me3_REP2_TSS, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H3K4me3_REP2_TSS, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H3K4me3_REP2_zcore_TSS_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H3K4me3_REP3_TSS, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H3K4me3_REP3_TSS, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H3K4me3_REP3_zcore_TSS_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H3K4me3_merged_TSS, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H3K4me3_merged_TSS, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H3K4me3_merged_zcore_TSS_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP1_TSS, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_REP1_TSS, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_REP1_zcore_TSS_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP2_TSS, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_REP2_TSS, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_REP2_zcore_TSS_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP3_TSS, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_REP3_TSS, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_REP3_zcore_TSS_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_merged_TSS, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_merged_TSS, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_merged_zcore_TSS_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+```
+
+H3K4me3 gene body
+
+Load files
+```{r}
+
+### variables ###
+## single replicates
+# gene body
+H3K4me3_gene_body_REP1 = "H3K4me3_ab8580_CEW1_L-24hrs_ext649_AA74_input_AA77_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+H3K4me3_gene_body_REP2 = "H3K4me3_ab8580_CEW1_L-24hrs_ext759_AA83_input_AA85_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+H3K4me3_gene_body_REP3 = "H3K4me3_ab8580_CEW1_L-24hrs_ext790_AA90_input_AA96_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+
+## merged
+# gene body
+H3K4me3_gene_body_merged = "H3K4me3_ab8580_CEW1_L-24hrs_merged_AA74_AA83_AA90_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_gene_body.tab"
+###
+
+```
+
+
+```{r}
+
+H3K4me3_REP1_gene_body <- read.table(H3K4me3_gene_body_REP1, header = FALSE)
+H3K4me3_REP2_gene_body <- read.table(H3K4me3_gene_body_REP2, header = FALSE)
+H3K4me3_REP3_gene_body <- read.table(H3K4me3_gene_body_REP3, header = FALSE)
+
+H3K4me3_merged_gene_body <- read.table(H3K4me3_gene_body_merged, header = FALSE)
+
+
+column_names_1 <- c("chromosome", "start", "end", "score")
+colnames(H3K4me3_REP1_gene_body) <- column_names_1
+colnames(H3K4me3_REP2_gene_body) <- column_names_1
+colnames(H3K4me3_REP3_gene_body) <- column_names_1
+
+colnames(H3K4me3_merged_gene_body) <- column_names_1
+
+```
+
+```{r}
+
+H3K4me3_REP1_gene_body <- add_zscore_column(H3K4me3_REP1_gene_body)
+H3K4me3_REP2_gene_body <- add_zscore_column(H3K4me3_REP2_gene_body)
+H3K4me3_REP3_gene_body <- add_zscore_column(H3K4me3_REP3_gene_body)
+
+H3K4me3_merged_gene_body <- add_zscore_column(H3K4me3_merged_gene_body)
+
+```
+
+```{r}
+
+sum_H3K4me3_REP1_gene_body <- summarize_data(H3K4me3_REP1_gene_body)
+sum_H3K4me3_REP2_gene_body <- summarize_data(H3K4me3_REP2_gene_body)
+sum_H3K4me3_REP3_gene_body <- summarize_data(H3K4me3_REP3_gene_body)
+
+sum_H3K4me3_merged_gene_body <- summarize_data(H3K4me3_merged_gene_body)
+
+
+```
+
+```{r}
+
+write.table(H3K4me3_merged_gene_body, paste0(species,"_H3K4me3_merged_gene_body.tsv"), sep = "\t", row.names =FALSE, col.names = TRUE)
+
+```
+
+```{r}
+
+w=7
+h=5
+
+ggplot(H3K4me3_REP1_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H3K4me3_REP1_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H3K4me3_REP1_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H3K4me3_REP2_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H3K4me3_REP2_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H3K4me3_REP2_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H3K4me3_REP3_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H3K4me3_REP3_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H3K4me3_REP3_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H3K4me3_merged_gene_body, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H3K4me3_merged_gene_body, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H3K4me3_merged_zcore_gene_body_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+
+```
+
+H4K20me1 by bin (10 kb)
+
+Load coverage in gene body files
+```{r}
+
+### variables ###
+## single replicates
+# gene body
+H4K20me1_bins_REP1 = "H4K20me1_ab9051_CEW1_L-24hrs_ext649_AA73_input_AA77_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_bins.tab"
+H4K20me1_bins_REP2 = "H4K20me1_ab9051_CEW1_L-24hrs_ext759_AA82_input_AA85_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_bins.tab"
+H4K20me1_bins_REP3 = "H4K20me1_ab9051_CEW1_L-24hrs_ext790_AA89_input_AA96_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_bins.tab"
+IgG_bins_REP1 = "IgG_ab46540_CEW1_L-24hrs_ext649_AA75_input_AA77_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_bins.tab"
+IgG_bins_REP2 = "IgG_ab46540_CEW1_L-24hrs_ext759_AA84_input_AA85_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_bins.tab"
+IgG_bins_REP3 = "IgG_ab46540_CEW1_L-24hrs_ext790_AA91_input_AA96_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_bins.tab"
+
+## merged
+# gene body
+H4K20me1_bins_merged = "H4K20me1_ab9051_CEW1_L-24hrs_merged_AA73_AA82_AA89_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_bins.tab" 
+IgG_bins_merged = "IgG_ab46540_CEW1_L-24hrs_merged_AA75_AA84_AA91_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_bins.tab"
+
+###
+
+```
+
+```{r}
+
+H4K20me1_REP1_bins <- read.table(H4K20me1_bins_REP1, header = FALSE)
+H4K20me1_REP2_bins <- read.table(H4K20me1_bins_REP2, header = FALSE)
+H4K20me1_REP3_bins <- read.table(H4K20me1_bins_REP3, header = FALSE)
+IgG_REP1_bins <- read.table(IgG_bins_REP1, header = FALSE)
+IgG_REP2_bins <- read.table(IgG_bins_REP2, header = FALSE)
+IgG_REP3_bins <- read.table(IgG_bins_REP3, header = FALSE)
+
+H4K20me1_merged_bins <- read.table(H4K20me1_bins_merged, header = FALSE)
+IgG_merged_bins <- read.table(IgG_bins_merged, header = FALSE)
+
+
+column_names_1 <- c("chromosome", "start", "end", "score")
+colnames(H4K20me1_REP1_bins) <- column_names_1
+colnames(H4K20me1_REP2_bins) <- column_names_1
+colnames(H4K20me1_REP3_bins) <- column_names_1
+colnames(IgG_REP1_bins) <- column_names_1
+colnames(IgG_REP2_bins) <- column_names_1
+colnames(IgG_REP3_bins) <- column_names_1
+
+colnames(H4K20me1_merged_bins) <- column_names_1
+colnames(IgG_merged_bins) <- column_names_1
+
+```
+
+```{r}
+
+H4K20me1_REP1_bins <- H4K20me1_REP1_bins[H4K20me1_REP1_bins[[1]] != "M", ]
+H4K20me1_REP2_bins <- H4K20me1_REP2_bins[H4K20me1_REP2_bins[[1]] != "M", ]
+H4K20me1_REP3_bins <- H4K20me1_REP3_bins[H4K20me1_REP3_bins[[1]] != "M", ]
+IgG_REP1_bins <- IgG_REP1_bins[IgG_REP1_bins[[1]] != "M", ]
+IgG_REP2_bins <- IgG_REP2_bins[IgG_REP2_bins[[1]] != "M", ]
+IgG_REP3_bins <- IgG_REP3_bins[IgG_REP3_bins[[1]] != "M", ]
+
+H4K20me1_merged_bins <- H4K20me1_merged_bins[H4K20me1_merged_bins[[1]] != "M", ]
+IgG_merged_bins <- IgG_merged_bins[IgG_merged_bins[[1]] != "M", ]
+
+
+```
+
+```{r}
+
+H4K20me1_REP1_bins <- add_zscore_column(H4K20me1_REP1_bins)
+H4K20me1_REP2_bins <- add_zscore_column(H4K20me1_REP2_bins)
+H4K20me1_REP3_bins <- add_zscore_column(H4K20me1_REP3_bins)
+IgG_REP1_bins <- add_zscore_column(IgG_REP1_bins)
+IgG_REP2_bins <- add_zscore_column(IgG_REP2_bins)
+IgG_REP3_bins <- add_zscore_column(IgG_REP3_bins)
+
+H4K20me1_merged_bins <- add_zscore_column(H4K20me1_merged_bins)
+IgG_merged_bins <- add_zscore_column(IgG_merged_bins)
+
+```
+
+```{r}
+
+sum_H4K20me1_REP1_bins <- summarize_data(H4K20me1_REP1_bins)
+sum_H4K20me1_REP2_bins <- summarize_data(H4K20me1_REP2_bins)
+sum_H4K20me1_REP3_bins <- summarize_data(H4K20me1_REP3_bins)
+sum_IgG_REP1_bins <- summarize_data(IgG_REP1_bins)
+sum_IgG_REP2_bins <- summarize_data(IgG_REP2_bins)
+sum_IgG_REP3_bins <- summarize_data(IgG_REP3_bins)
+
+sum_H4K20me1_merged_bins <- summarize_data(H4K20me1_merged_bins)
+sum_IgG_merged_bins <- summarize_data(IgG_merged_bins)
+
+```
+
+
+```{r}
+
+write.table(H4K20me1_merged_bins, paste0(species,"_H4K20me1_merged_bins.tsv"), sep = "\t", row.names =FALSE, col.names = TRUE)
+
+```
+
+```{r}
+
+w=7
+h=5
+
+ggplot(H4K20me1_REP1_bins, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H4K20me1_REP1_bins, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H4K20me1_REP1_zcore_bins_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H4K20me1_REP2_bins, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H4K20me1_REP2_bins, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H4K20me1_REP2_zcore_bins_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H4K20me1_REP3_bins, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H4K20me1_REP3_bins, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H4K20me1_REP3_zcore_bins_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H4K20me1_merged_bins, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H4K20me1_merged_bins, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H4K20me1_merged_zcore_bins_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP1_bins, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_REP1_bins, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_REP1_zcore_bins_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP2_bins, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_REP2_bins, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_REP2_zcore_bins_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP3_bins, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_REP3_bins, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_REP3_zcore_bins_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_merged_bins, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_merged_bins, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_merged_zcore_bins_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+```
+
+H4K20me1 intergenic
+
+Load coverage in gene body files
+```{r}
+
+### variables ###
+## single replicates
+# gene body
+H4K20me1_intergenic_REP1 = "H4K20me1_ab9051_CEW1_L-24hrs_ext649_AA73_input_AA77_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_intergenic.tab"
+H4K20me1_intergenic_REP2 = "H4K20me1_ab9051_CEW1_L-24hrs_ext759_AA82_input_AA85_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_intergenic.tab"
+H4K20me1_intergenic_REP3 = "H4K20me1_ab9051_CEW1_L-24hrs_ext790_AA89_input_AA96_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_intergenic.tab"
+IgG_intergenic_REP1 = "IgG_ab46540_CEW1_L-24hrs_ext649_AA75_input_AA77_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_intergenic.tab"
+IgG_intergenic_REP2 = "IgG_ab46540_CEW1_L-24hrs_ext759_AA84_input_AA85_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_intergenic.tab"
+IgG_intergenic_REP3 = "IgG_ab46540_CEW1_L-24hrs_ext790_AA91_input_AA96_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_intergenic.tab"
+
+## merged
+# gene body
+H4K20me1_intergenic_merged = "H4K20me1_ab9051_CEW1_L-24hrs_merged_AA73_AA82_AA89_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_intergenic.tab" 
+IgG_intergenic_merged = "IgG_ab46540_CEW1_L-24hrs_merged_AA75_AA84_AA91_oscheius_tipulae.PRJNA644888.WBPS16.genomic_inputratio_intergenic.tab"
+
+###
+
+```
+
+```{r}
+
+H4K20me1_REP1_intergenic <- read.table(H4K20me1_intergenic_REP1, header = FALSE)
+H4K20me1_REP2_intergenic <- read.table(H4K20me1_intergenic_REP2, header = FALSE)
+H4K20me1_REP3_intergenic <- read.table(H4K20me1_intergenic_REP3, header = FALSE)
+IgG_REP1_intergenic <- read.table(IgG_intergenic_REP1, header = FALSE)
+IgG_REP2_intergenic <- read.table(IgG_intergenic_REP2, header = FALSE)
+IgG_REP3_intergenic <- read.table(IgG_intergenic_REP3, header = FALSE)
+
+H4K20me1_merged_intergenic <- read.table(H4K20me1_intergenic_merged, header = FALSE)
+IgG_merged_intergenic <- read.table(IgG_intergenic_merged, header = FALSE)
+
+
+column_names_1 <- c("chromosome", "start", "end", "score")
+colnames(H4K20me1_REP1_intergenic) <- column_names_1
+colnames(H4K20me1_REP2_intergenic) <- column_names_1
+colnames(H4K20me1_REP3_intergenic) <- column_names_1
+colnames(IgG_REP1_intergenic) <- column_names_1
+colnames(IgG_REP2_intergenic) <- column_names_1
+colnames(IgG_REP3_intergenic) <- column_names_1
+
+colnames(H4K20me1_merged_intergenic) <- column_names_1
+colnames(IgG_merged_intergenic) <- column_names_1
+
+```
+
+Remove mitochondrial genes (if any)
+```{r}
+
+#H4K20me1_REP1_intergenic <- H4K20me1_REP1_intergenic[H4K20me1_REP1_intergenic[[1]] != "M", ]
+#H4K20me1_REP2_intergenic <- H4K20me1_REP2_intergenic[H4K20me1_REP2_intergenic[[1]] != "M", ]
+#H4K20me1_REP3_intergenic <- H4K20me1_REP3_intergenic[H4K20me1_REP3_intergenic[[1]] != "M", ]
+#IgG_REP1_intergenic <- IgG_REP1_intergenic[IgG_REP1_intergenic[[1]] != "M", ]
+#IgG_REP2_intergenic <- IgG_REP2_intergenic[IgG_REP2_intergenic[[1]] != "M", ]
+#IgG_REP3_intergenic <- IgG_REP3_intergenic[IgG_REP3_intergenic[[1]] != "M", ]
+
+#H4K20me1_merged_intergenic <- H4K20me1_merged_intergenic[H4K20me1_merged_intergenic[[1]] != "M", ]
+#IgG_merged_intergenic <- IgG_merged_intergenic[IgG_merged_intergenic[[1]] != "M", ]
+
+```
+
+```{r}
+
+H4K20me1_REP1_intergenic <- add_zscore_column(H4K20me1_REP1_intergenic)
+H4K20me1_REP2_intergenic <- add_zscore_column(H4K20me1_REP2_intergenic)
+H4K20me1_REP3_intergenic <- add_zscore_column(H4K20me1_REP3_intergenic)
+IgG_REP1_intergenic <- add_zscore_column(IgG_REP1_intergenic)
+IgG_REP2_intergenic <- add_zscore_column(IgG_REP2_intergenic)
+IgG_REP3_intergenic <- add_zscore_column(IgG_REP3_intergenic)
+
+H4K20me1_merged_intergenic <- add_zscore_column(H4K20me1_merged_intergenic)
+IgG_merged_intergenic <- add_zscore_column(IgG_merged_intergenic)
+
+```
+
+```{r}
+
+sum_H4K20me1_REP1_intergenic <- summarize_data(H4K20me1_REP1_intergenic)
+sum_H4K20me1_REP2_intergenic <- summarize_data(H4K20me1_REP2_intergenic)
+sum_H4K20me1_REP3_intergenic <- summarize_data(H4K20me1_REP3_intergenic)
+sum_IgG_REP1_intergenic <- summarize_data(IgG_REP1_intergenic)
+sum_IgG_REP2_intergenic <- summarize_data(IgG_REP2_intergenic)
+sum_IgG_REP3_intergenic <- summarize_data(IgG_REP3_intergenic)
+
+sum_H4K20me1_merged_intergenic <- summarize_data(H4K20me1_merged_intergenic)
+sum_IgG_merged_intergenic <- summarize_data(IgG_merged_intergenic)
+
+```
+
+
+```{r}
+
+write.table(H4K20me1_merged_intergenic, paste0(species,"_H4K20me1_merged_intergenic.tsv"), sep = "\t", row.names =FALSE, col.names = TRUE)
+write.table(H4K20me1_REP1_intergenic, paste0(species,"_H4K20me1_REP1_intergenic.tsv"), sep = "\t", row.names =FALSE, col.names = TRUE)
+write.table(H4K20me1_REP2_intergenic, paste0(species,"_H4K20me1_REP2_intergenic.tsv"), sep = "\t", row.names =FALSE, col.names = TRUE)
+write.table(H4K20me1_REP3_intergenic, paste0(species,"_H4K20me1_REP3_intergenic.tsv"), sep = "\t", row.names =FALSE, col.names = TRUE)
+
+```
+
+```{r}
+
+w=7
+h=5
+
+ggplot(H4K20me1_REP1_intergenic, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H4K20me1_REP1_intergenic, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H4K20me1_REP1_zcore_intergenic_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H4K20me1_REP2_intergenic, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H4K20me1_REP2_intergenic, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H4K20me1_REP2_zcore_intergenic_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H4K20me1_REP3_intergenic, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H4K20me1_REP3_intergenic, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H4K20me1_REP3_zcore_intergenic_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(H4K20me1_merged_intergenic, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_H4K20me1_merged_intergenic, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_H4K20me1_merged_zcore_intergenic_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP1_intergenic, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_REP1_intergenic, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_REP1_zcore_intergenic_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP2_intergenic, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_REP2_intergenic, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_REP2_zcore_intergenic_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_REP3_intergenic, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_REP3_intergenic, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_REP3_zcore_intergenic_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+ggplot(IgG_merged_intergenic, aes(x = chromosome, y = zscore, fill = chromosome)) +
+  geom_violin() +
+  labs(y = NULL, x = NULL) +
+  scale_fill_manual(values = chrom_colors, guide = "none") +
+  geom_point(data = sum_IgG_merged_intergenic, 
+             aes(x = chromosome, 
+                 y = mean), 
+             size = 2, 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  ylim(-3,5) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+file.name = paste0(species,"_ChIP_IgG_merged_zcore_intergenic_violin.pdf")
+ggsave(filename = file.name, dpi = 300, device = "pdf", width = w, height = h, units = "in")
+
+```
