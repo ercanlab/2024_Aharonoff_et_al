@@ -1,0 +1,129 @@
+---
+title: "perm_ppa"
+author: "Avrami"
+date: "2023-08-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+Load data
+```{r}
+
+## P. pacificus data
+ddc_slope_A_ppa <-read.csv("ddc_slope_A_ppa.csv")
+ddc_slope_A_ppa <- ddc_slope_A_ppa[-c(26:34),] # remove the right end of values
+ddc_slope_A_ppa <- cbind(ddc_slope_A_ppa, rep("A", nrow(ddc_slope_A_ppa))) # add column for chromosome and fill in A for all rows
+ddc_slope_A_ppa <- ddc_slope_A_ppa[,c(4,8,9)] # subset slope, s_bp, and chromosome columns
+colnames(ddc_slope_A_ppa) <- c("slope", "s", "chromosome") # rename columns 
+
+ddc_slope_X_ppa <-read.csv("ddc_slope_X_ppa.csv")
+ddc_slope_X_ppa <- ddc_slope_X_ppa[-c(26:31),]
+ddc_slope_X_ppa <- cbind(ddc_slope_X_ppa, rep("X", nrow(ddc_slope_X_ppa)))
+ddc_slope_X_ppa <- ddc_slope_X_ppa[,c(4,8,9)]
+colnames(ddc_slope_X_ppa) <- c("slope", "s", "chromosome")
+
+# Working file
+ddc_slopes_AX_ppa <- rbind(ddc_slope_A_ppa, ddc_slope_X_ppa) # combine A and X dataframes
+
+
+```
+
+Calculate the observed difference
+```{r}
+
+library(dplyr)
+
+#this is your base code
+
+max_slopes <- data.frame(tapply(ddc_slopes_AX_ppa$slope, ddc_slopes_AX_ppa$chrom, max)) # extract the max slope value for A and X
+colnames(max_slopes) <- c("slope")
+
+max_slopes <- merge(max_slopes, ddc_slopes_AX_ppa, by ="slope") # extract the s_bp that corresponds to the max slope for A and X
+max_slopes <- max_slopes[order(max_slopes$chromosome),]
+#max_slopes_A <- max_slopes[1:5,]
+#mean_s_A <- mean(max_slopes_A$s)
+#s_X <- max_slopes[6,2]
+
+s_A <- max_slopes[1,2] # the s_bp for A at the max slope
+s_X <- max_slopes[2,2] # the s_bp for X at the max slope
+original <- s_A - s_X # the observed difference between s_A and s_X
+
+```
+
+```{r}
+
+chrom = ddc_slopes_AX_ppa$chromosome
+slope = ddc_slopes_AX_ppa$slope
+
+```
+
+Function to permute and calculate test statistic
+```{r}
+
+permutation.test <- function(chrom, slope, n){
+  distribution=c()
+  for(i in 1:n){
+    distribution[i] <- as.data.frame(tapply(ddc_slopes_AX_ppa$slope, sample(ddc_slopes_AX_ppa$chrom, nrow(ddc_slopes_AX_ppa), FALSE), max))
+  }
+  return(distribution)
+}
+
+```
+
+Run permutation.test function and plot
+```{r}
+
+n=10000 # number of permutations
+perm <- permutation.test(chrom, slope, n)
+
+perm_df <- data.frame(t(data.frame(perm)))
+colnames(perm_df) <- c("A", "X")
+rownames(perm_df) <- 1:n
+
+
+perm_df_A <- data.frame(perm_df[,1])
+colnames(perm_df_A) <- c("slope")
+
+perm_df_X <- data.frame(perm_df[,2])
+colnames(perm_df_X) <- c("slope")
+
+bp_A <- merge(perm_df_A, ddc_slopes_AX_ppa, by = "slope")
+bp_X <- merge(perm_df_X, ddc_slopes_AX_ppa, by = "slope")
+
+bp_all = data.frame(cbind(bp_A[,2], bp_X[,2]))
+colnames(bp_all) <- c("s_A", "s_X")
+
+bp_all$s_diff <- bp_all$s_A - bp_all$s_X
+bp_all <- cbind(bp_all, bp_all$s_diff/1000)
+colnames(bp_all) <- c("s_A", "s_X", "s_diff", "s_diff_kb")
+
+
+p_value_ppa <- mean(abs(bp_all$s_diff) >= abs(original))
+                 
+hist.data <- hist(bp_all$s_diff, breaks=50, col='grey', main="Permutation Distribution, P. pacificus", las=1, xlab='permuted differences in loop size between A and X')
+abline(v=original, lwd=3, col="red")
+
+library(ggplot2)
+
+ggplot(bp_all, aes(x=s_diff)) + geom_histogram(bins = 50, fill="black", aes(y=after_stat(ncount))) +
+  geom_vline(xintercept = original, color = 'red', size = 0.5) +
+  theme_bw() +
+  xlab("Difference in loop size between A and X (bp)") +
+  ylab("Frequency") +
+  scale_x_continuous(labels = scales::number_format()) +
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0))) +
+  theme(axis.title.x = element_text(margin = margin(t = 15, r = 0, b = 0, l = 0)))
+
+ggsave("ppa_perm.png", device="png", dpi=300)
+ggsave("ppa_perm.pdf", device="pdf", dpi=300)
+
+```
